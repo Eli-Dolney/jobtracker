@@ -1,37 +1,47 @@
-import openpyxl
-from openpyxl import Workbook
-from datetime import datetime
 import os
+import datetime
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+SERVICE_ACCOUNT_FILE = '/Users/elidolney/Desktop/jobtracker/jobtracker-382104-0bafcd7aed9a.json'
 
 def get_user_input(prompt):
     return input(prompt)
 
-def save_data_to_excel(data, filename):
-    if not os.path.exists(filename):
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.append(['Client House', 'Start Time', 'End Time', 'Date', 'Total Amount', 'Miles Driven', 'Taxes on Driving'])
-    else:
-        workbook = openpyxl.load_workbook(filename)
-        sheet = workbook.active
-    
-    sheet.append(data)
-    workbook.save(filename)
+def get_google_sheets_service():
+    creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('sheets', 'v4', credentials=creds)
+    return service
+
+
+def save_data_to_google_sheets(sheet_id, data):
+    service = get_google_sheets_service()
+    body = {
+        'range': 'A1',
+        'values': [data],
+        'majorDimension': 'ROWS'
+    }
+    result = service.spreadsheets().values().append(
+        spreadsheetId=sheet_id,
+        range='A1',
+        valueInputOption='RAW',
+        insertDataOption='INSERT_ROWS',
+        body=body).execute()
 
 def main():
-    filename = 'personal_care_assistant_data.xlsx'
+    sheet_id = '1WyWTHTaItze8sX4njt1jSn81oLRM_pnlrm7JbBBpCfw' # Replace this with your Google Sheet ID
     
     client_house = get_user_input("Enter the client's house you worked at: ")
-    start_time = get_user_input("Enter the start time (HH:MM format): ")
-    end_time = get_user_input("Enter the end time (HH:MM format): ")
+    total_hours_worked = float(get_user_input("Enter the total hours worked for the day: "))
     date = get_user_input("Enter the date (YYYY-MM-DD format): ")
-    total_amount = float(get_user_input("Enter the total amount made: "))
+    money_made = float(get_user_input("Enter the amount of money made: "))
     miles_driven = float(get_user_input("Enter the miles driven: "))
-    taxes_on_driving = float(get_user_input("Enter the taxes on driving: "))
-    
-    data = [client_house, start_time, end_time, date, total_amount, miles_driven, taxes_on_driving]
-    save_data_to_excel(data, filename)
-    print("Data saved to '{}'".format(filename))
+
+    data = [client_house, total_hours_worked, date, money_made, miles_driven]
+    save_data_to_google_sheets(sheet_id, data)
+    print("Data saved to Google Sheets")
 
 if __name__ == "__main__":
     main()
+
